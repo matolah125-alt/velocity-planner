@@ -5,16 +5,6 @@
     <div class="row justify-content-center">
         <div class="col-md-4">
             <h2 class="text-center">Login</h2>
-
-            {# Display flashed messages (e.g., login errors) #}
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="alert alert-{% if category == 'error' %}danger{% else %}{{ category }}{% endif %}">{{ message }}</div>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
-
             <form action="/login" method="post" class="mt-3">
                 <div class="mb-3">
                     <label for="username" class="form-label">Username</label>
