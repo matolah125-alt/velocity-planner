@@ -40,15 +40,20 @@ def login_required(f):
 @app.route('/')
 @login_required
 def index():
-    # Onboarding: Redirect to add task if the user has no pending tasks
-    db = get_db_connection()
-    task_count = db.execute('SELECT COUNT(*) FROM tasks WHERE user_id = ? AND is_completed = 0', (session["user_id"],)).fetchone()[0]
-    db.close()
-    if task_count == 0:
+    try:
+        # Onboarding: Redirect to add task if the user has no pending tasks
+        db = get_db_connection()
+        task_count = db.execute('SELECT COUNT(*) FROM tasks WHERE user_id = ? AND is_completed = 0', (session["user_id"],)).fetchone()[0]
+        db.close()
+        if task_count == 0:
+            return redirect(url_for('add_task'))
+
+        organized_diary = get_optimized_plan(session["user_id"], 24)
+        return render_template('index.html', tasks=organized_diary)
+    except sqlite3.OperationalError:
+        flash("Database tables are missing. Please ensure init_db.py has run successfully.", "error")
         return redirect(url_for('add_task'))
 
-    organized_diary = get_optimized_plan(session["user_id"], 24)
-    return render_template('index.html', tasks=organized_diary)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -121,11 +126,13 @@ def add_task():
         is_manual_schedule = 1 if scheduled_date and scheduled_time else 0
 
         db = get_db_connection()
-        db.execute('INSERT INTO tasks (user_id, title, duration, priority, scheduled_date, scheduled_time, is_manual_schedule) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                   (session["user_id"], title, duration, priority, scheduled_date, scheduled_time, is_manual_schedule))
-        db.commit()
-        db.close()
-        return redirect(url_for('index'))
+        try:
+            db.execute('INSERT INTO tasks (user_id, title, duration, priority, scheduled_date, scheduled_time, is_manual_schedule) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                       (session["user_id"], title, duration, priority, scheduled_date, scheduled_time, is_manual_schedule))
+            db.commit()
+            return redirect(url_for('index'))
+        finally:
+            db.close()
 
     return render_template('add.html')
 
@@ -137,11 +144,13 @@ def complete_task():
         try:
             task_id = int(task_id)
             db = get_db_connection()
-            # Ensure the task belongs to the logged-in user before marking as complete
-            db.execute('UPDATE tasks SET is_completed = 1 WHERE id = ? AND user_id = ?',
-                       (task_id, session["user_id"]))
-            db.commit()
-            db.close()
+            try:
+                # Ensure the task belongs to the logged-in user before marking as complete
+                db.execute('UPDATE tasks SET is_completed = 1 WHERE id = ? AND user_id = ?',
+                           (task_id, session["user_id"]))
+                db.commit()
+            finally:
+                db.close()
         except (ValueError, TypeError):
             return "Invalid task ID", 400 # Or flash a message
     return redirect(url_for('index'))
@@ -150,26 +159,26 @@ def complete_task():
 @login_required
 def push_task(task_id):
     db = get_db_connection()
-    task = db.execute('SELECT * FROM tasks WHERE id = ? AND user_id = ?', (task_id, session["user_id"])).fetchone()
-    
-    if not task:
+    try:
+        task = db.execute('SELECT * FROM tasks WHERE id = ? AND user_id = ?', (task_id, session["user_id"])).fetchone()
+        
+        if not task:
+            return "Task not found", 404
+            
+        if request.method == 'POST':
+            scheduled_date = request.form.get('scheduled_date')
+            scheduled_time = request.form.get('scheduled_time')
+            
+            is_manual = 1 if scheduled_date and scheduled_time else 0
+            
+            db.execute('UPDATE tasks SET scheduled_date = ?, scheduled_time = ?, is_manual_schedule = ? WHERE id = ?',
+                       (scheduled_date, scheduled_time, is_manual, task_id))
+            db.commit()
+            return redirect(url_for('index'))
+            
+        return render_template('push.html', task=task)
+    finally:
         db.close()
-        return "Task not found", 404
-        
-    if request.method == 'POST':
-        scheduled_date = request.form.get('scheduled_date')
-        scheduled_time = request.form.get('scheduled_time')
-        
-        is_manual = 1 if scheduled_date and scheduled_time else 0
-        
-        db.execute('UPDATE tasks SET scheduled_date = ?, scheduled_time = ?, is_manual_schedule = ? WHERE id = ?',
-                   (scheduled_date, scheduled_time, is_manual, task_id))
-        db.commit()
-        db.close()
-        return redirect(url_for('index'))
-        
-    db.close()
-    return render_template('push.html', task=task)
 
 if __name__ == "__main__":
     app.run(debug=True)

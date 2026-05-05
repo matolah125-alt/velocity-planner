@@ -16,7 +16,7 @@
 <body>
     <nav class="container mt-3 d-flex justify-content-between align-items-center">
         <div>
-        {% if session.user_id %}
+        {% if session.get('user_id') %}
             <a href="/">Daily Plan</a> | 
             <a href="/add">Add Task</a> | 
             <a href="/logout">Logout</a>
@@ -31,6 +31,18 @@
         <hr>
     </div>
     <main class="container">
+        {# Global Flash Messages #}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{% if category == 'error' %}danger{% elif category == 'success' %}success{% else %}info{% endif %} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
         {% block body %}{% endblock %}
     </main>
 
