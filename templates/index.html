@@ -1,0 +1,73 @@
+{% extends "layout.html" %}
+
+{% block body %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>My Digital Diary</h1>
+            <p class="text-muted">Algorithm-optimized schedule based on your task velocity.</p>
+        </div>
+    </div>
+
+    {% if not tasks %}
+        <div class="alert alert-info">Your diary is empty! <a href="/add">Add some tasks</a> to see your organized schedule.</div>
+    {% endif %}
+
+    {% for day, data in tasks.items() %}
+    <div class="card mb-5 border-primary shadow-sm">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-middle">
+            <h4 class="mb-0">{{ day }}</h4>
+            <span>{{ data.hours_used | format_duration }} scheduled</span>
+        </div>
+        <div class="card-body">
+            <div class="progress mb-4" style="height: 10px;">
+                <div class="progress-bar bg-success" style="width: {{ data.progress }}%"></div>
+            </div>
+
+            <div class="list-group list-group-flush">
+                {% for item in data.tasks %}
+                {% if item.is_break %}
+                <div class="list-group-item d-flex justify-content-between align-items-center py-2 bg-light text-muted border-start border-warning border-3">
+                    <div class="d-flex align-items-center">
+                        <div class="me-4 text-center" style="width: 80px;">
+                            <span class="fw-bold">{{ item.scheduled_time_display }}</span>
+                        </div>
+                        <div>
+                            <h6 class="mb-0">{{ item.title }}</h6>
+                            <small>{{ item.duration | format_duration }}</small>
+                        </div>
+                    </div>
+                    <div>
+                        <i class="bi bi-cup-hot"></i> <!-- Optional: Add a break icon, requires Bootstrap Icons -->
+                    </div>
+                </div>
+                {% else %}
+                <div class="list-group-item d-flex justify-content-between align-items-center py-3">
+                    <div class="d-flex align-items-center">
+                        <div class="me-4 text-center" style="width: 80px;">
+                            <span class="fw-bold text-primary">{{ item.scheduled_time_display }}</span>
+                        </div>
+                        <div>
+                            <h5 class="mb-1">{{ item.title }}</h5>
+                            <small class="text-muted">{{ item.duration | format_duration }}</small>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="badge {% if item.priority == 5 %}bg-danger{% else %}bg-secondary{% endif %} rounded-pill">
+                            P{{ item.priority }}
+                        </span>
+                        <form action="/complete_task" method="post" class="d-inline ms-2">
+                            <input type="hidden" name="task_id" value="{{ item.id }}">
+                            <button type="submit" class="btn btn-sm btn-outline-success">Complete</button>
+                        </form>
+                        <a href="{{ url_for('push_task', task_id=item.id) }}" class="btn btn-sm btn-outline-primary ms-1">Push</a>
+                    </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
