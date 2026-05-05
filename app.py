@@ -1,6 +1,6 @@
 import os
 import sqlite3
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, flash
 from helpers import get_optimized_plan, get_db_connection
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
@@ -75,7 +75,8 @@ def login():
         if user and check_password_hash(user['hash'], password):
             session['user_id'] = user['id']
             return redirect(url_for('index'))
-        return "Invalid username or password", 401
+        flash("Invalid username or password", "error")
+        return redirect(url_for('login'))
     return render_template('login.html')
 
 @app.route('/logout')
