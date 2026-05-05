@@ -5,12 +5,26 @@ from helpers import get_optimized_plan, get_db_connection
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 from dotenv import load_dotenv
+from init_db import initialize
 
 # Load environment variables from .env file
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-mode-key-change-this-in-prod")
+
+# Ensure database is initialized on startup
+def ensure_database():
+    try:
+        db = get_db_connection()
+        db.execute("SELECT 1 FROM users LIMIT 1")
+        db.close()
+    except sqlite3.OperationalError:
+        print("Database tables missing. Initializing...")
+        initialize()
+
+# Run the check
+ensure_database()
 
 @app.template_filter('format_duration')
 def format_duration(hours):
