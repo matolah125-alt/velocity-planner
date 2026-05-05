@@ -55,12 +55,26 @@ def register():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
+
+        if not username or not password:
+            flash("Username and password are required", "error")
+            return redirect(url_for('register'))
+
         db = get_db_connection()
-        db.execute('INSERT INTO users (username, hash) VALUES (?, ?)', 
-                   (username, generate_password_hash(password)))
-        db.commit()
-        db.close()
-        return redirect(url_for('login'))
+        try:
+            db.execute('INSERT INTO users (username, hash) VALUES (?, ?)', 
+                       (username, generate_password_hash(password)))
+            db.commit()
+            flash("Registration successful! Please log in.", "success")
+            return redirect(url_for('login'))
+        except sqlite3.IntegrityError:
+            flash("Username already exists", "error")
+            return redirect(url_for('register'))
+        except sqlite3.OperationalError as e:
+            flash(f"Database error: {e}. Did you run init_db.py?", "error")
+            return redirect(url_for('register'))
+        finally:
+            db.close()
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -70,11 +84,17 @@ def login():
         username = request.form.get('username')
         password = request.form.get('password')
         db = get_db_connection()
-        user = db.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
-        db.close()
-        if user and check_password_hash(user['hash'], password):
-            session['user_id'] = user['id']
-            return redirect(url_for('index'))
+        try:
+            user = db.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+            if user and check_password_hash(user['hash'], password):
+                session['user_id'] = user['id']
+                return redirect(url_for('index'))
+        except sqlite3.OperationalError as e:
+            flash(f"Database error: {e}", "error")
+            return redirect(url_for('login'))
+        finally:
+            db.close()
+            
         flash("Invalid username or password", "error")
         return redirect(url_for('login'))
     return render_template('login.html')
