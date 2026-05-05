@@ -1,6 +1,6 @@
 import sqlite3
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import math
 
 # --- Human Constraints Configuration ---
@@ -53,14 +53,15 @@ def get_optimized_plan(user_id, available_hours):
     # Diary Configuration
     
     organized_schedule = {}
-    current_date = datetime.now()
+    # Define Kenyan Timezone (UTC+3)
+    kenyan_tz = timezone(timedelta(hours=3))
+    current_date = datetime.now(kenyan_tz)
     current_time_float = current_date.hour + current_date.minute / 60
     
     # Initialize the task pointer outside the loop so tasks are consumed across the week
     current_algorithm_task_index = 0
     
-    # Helper for time formatting
-    base_datetime_today = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
+    base_datetime_today = current_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
     # Plan for the next 7 days
     for day_offset in range(7):
